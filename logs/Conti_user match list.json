@@ -1,0 +1,952 @@
+[
+  {
+    "primary": "Ford",
+    "aliases": [
+      "ruby",
+      "shelby",
+      "fin22"
+    ]
+  },
+  {
+    "primary": "Hash",
+    "aliases": [
+      "jefferson"
+    ]
+  },
+  {
+    "primary": "N1974",
+    "aliases": [
+      "gansmiller",
+      "koriban",
+      "vacansypro",
+      "ishteryakovruslan"
+    ]
+  },
+  {
+    "primary": "Neo",
+    "aliases": [
+      "wild",
+      "alieelu",
+      "bazar_9",
+      "5536914032687620"
+    ]
+  },
+  {
+    "primary": "Verto",
+    "aliases": [
+      "verto",
+      "verto",
+      "asteradminn",
+      "dnbolt",
+      "mr.root"
+    ]
+  },
+  {
+    "primary": "atlas",
+    "aliases": [
+      "stuffy"
+    ]
+  },
+  {
+    "primary": "austin",
+    "aliases": [
+      "randcello"
+    ]
+  },
+  {
+    "primary": "axel",
+    "aliases": [
+      "beautifullife"
+    ]
+  },
+  {
+    "primary": "baget",
+    "aliases": [
+      "vnc",
+      "MaxMS76",
+      "batono",
+      "mms_ua"
+    ]
+  },
+  {
+    "primary": "band",
+    "aliases": [
+      "alexis"
+    ]
+  },
+  {
+    "primary": "bentley",
+    "aliases": [
+      "manuel",
+      "Max17",
+      "volhvb",
+      "benalien"
+    ]
+  },
+  {
+    "primary": "biggie",
+    "aliases": [
+      "nikola131189",
+      "5106211034173398"
+    ]
+  },
+  {
+    "primary": "bio",
+    "aliases": [
+      "new_henry"
+    ]
+  },
+  {
+    "primary": "born",
+    "aliases": [
+      "alphabet"
+    ]
+  },
+  {
+    "primary": "bourbon",
+    "aliases": [
+      "elijah",
+      "trqa23rt"
+    ]
+  },
+  {
+    "primary": "braun",
+    "aliases": [
+      "esteban"
+    ]
+  },
+  {
+    "primary": "buck",
+    "aliases": [
+      "glory01",
+      "glory05"
+    ]
+  },
+  {
+    "primary": "bullet",
+    "aliases": [
+      "beautiful"
+    ]
+  },
+  {
+    "primary": "bullet",
+    "aliases": [
+      "m2686"
+    ]
+  },
+  {
+    "primary": "buza",
+    "aliases": [
+      "silver",
+      "mayor",
+      "time_t"
+    ]
+  },
+  {
+    "primary": "cany",
+    "aliases": [
+      "asmwardest",
+      "79216190177"
+    ]
+  },
+  {
+    "primary": "carrol",
+    "aliases": [
+      "chipsoft",
+      "microchipsoft"
+    ]
+  },
+  {
+    "primary": "carter",
+    "aliases": [
+      "willie",
+      "keykey"
+    ]
+  },
+  {
+    "primary": "cert",
+    "aliases": [
+      "cyberhunter"
+    ]
+  },
+  {
+    "primary": "chip",
+    "aliases": [
+      "dail"
+    ]
+  },
+  {
+    "primary": "codes",
+    "aliases": [
+      "prgrmst"
+    ]
+  },
+  {
+    "primary": "core",
+    "aliases": [
+      "aHgooLe"
+    ]
+  },
+  {
+    "primary": "cosmos",
+    "aliases": [
+      "stanton",
+      "cosm123"
+    ]
+  },
+  {
+    "primary": "cruz",
+    "aliases": [
+      "plaguedoc"
+    ]
+  },
+  {
+    "primary": "cypher",
+    "aliases": [
+      "willberich"
+    ]
+  },
+  {
+    "primary": "dandis",
+    "aliases": [
+      "benny",
+      "ruben",
+      "klark",
+      "doomsday"
+    ]
+  },
+  {
+    "primary": "defender",
+    "aliases": [
+      "Adam",
+      "polanders"
+    ]
+  },
+  {
+    "primary": "deploy",
+    "aliases": [
+      "exploitdb"
+    ]
+  },
+  {
+    "primary": "derek",
+    "aliases": [
+      "clyde",
+      "yastreb",
+      "mario2bebi",
+      "faweqbiber"
+    ]
+  },
+  {
+    "primary": "doc",
+    "aliases": [
+      "hooks"
+    ]
+  },
+  {
+    "primary": "driver",
+    "aliases": [
+      "frank",
+      "bkb"
+    ]
+  },
+  {
+    "primary": "duna",
+    "aliases": [
+      "gnome"
+    ]
+  },
+  {
+    "primary": "dylon",
+    "aliases": [
+      "kurt"
+    ]
+  },
+  {
+    "primary": "electric.p",
+    "aliases": [
+      "electric"
+    ]
+  },
+  {
+    "primary": "elon",
+    "aliases": [
+      "elroy",
+      "jabelon",
+      "jared.asky"
+    ]
+  },
+  {
+    "primary": "ernest",
+    "aliases": [
+      "Larry",
+      "strd"
+    ]
+  },
+  {
+    "primary": "fast",
+    "aliases": [
+      "basil",
+      "faster",
+      "faster_1963",
+      "cha84"
+    ]
+  },
+  {
+    "primary": "flip",
+    "aliases": [
+      "jaime",
+      "flip"
+    ]
+  },
+  {
+    "primary": "fog",
+    "aliases": [
+      "dash",
+      "dashbyte",
+      "nwish17",
+      "79192207816"
+    ]
+  },
+  {
+    "primary": "frog",
+    "aliases": [
+      "geraldo",
+      "crazy_digger"
+    ]
+  },
+  {
+    "primary": "gabr",
+    "aliases": [
+      "gabriel"
+    ]
+  },
+  {
+    "primary": "gary",
+    "aliases": [
+      "nescafeoriginal",
+      "threesha"
+    ]
+  },
+  {
+    "primary": "gerald",
+    "aliases": [
+      "gerald",
+      "german7292812",
+      "5469550033055606"
+    ]
+  },
+  {
+    "primary": "ghost",
+    "aliases": [
+      "ned",
+      "duhastich"
+    ]
+  },
+  {
+    "primary": "gibby",
+    "aliases": [
+      "diego",
+      "gibby"
+    ]
+  },
+  {
+    "primary": "globus",
+    "aliases": [
+      "homer",
+      "vkaryagin"
+    ]
+  },
+  {
+    "primary": "gold",
+    "aliases": [
+      "hammer",
+      "goldtemp"
+    ]
+  },
+  {
+    "primary": "grant",
+    "aliases": [
+      "robert",
+      "balzak"
+    ]
+  },
+  {
+    "primary": "green",
+    "aliases": [
+      "rocco",
+      "highscreen",
+      "bormental",
+      "bormental2021"
+    ]
+  },
+  {
+    "primary": "grom",
+    "aliases": [
+      "benny"
+    ]
+  },
+  {
+    "primary": "gucci",
+    "aliases": [
+      "alik"
+    ]
+  },
+  {
+    "primary": "hector",
+    "aliases": [
+      "allpresto",
+      "antonio.lightsoft"
+    ]
+  },
+  {
+    "primary": "henry",
+    "aliases": [
+      "soni1504",
+      "advalexsey",
+      "380665483718",
+      "4149439319762039"
+    ]
+  },
+  {
+    "primary": "hlor",
+    "aliases": [
+      "odis"
+    ]
+  },
+  {
+    "primary": "hof",
+    "aliases": [
+      "cesar",
+      "guliver"
+    ]
+  },
+  {
+    "primary": "idgo",
+    "aliases": [
+      "porfirio",
+      "robert0008"
+    ]
+  },
+  {
+    "primary": "jamir",
+    "aliases": [
+      "gunz",
+      "jade",
+      "devi__",
+      "hatsube",
+      "shuplyakov.danya",
+      "4893470267915624"
+    ]
+  },
+  {
+    "primary": "jose",
+    "aliases": [
+      "aexionsky"
+    ]
+  },
+  {
+    "primary": "kagas",
+    "aliases": [
+      "maxhalikus"
+    ]
+  },
+  {
+    "primary": "kaktus",
+    "aliases": [
+      "collin",
+      "fuzz",
+      "dpigeon"
+    ]
+  },
+  {
+    "primary": "kenshi",
+    "aliases": [
+      "techpower"
+    ]
+  },
+  {
+    "primary": "kingston",
+    "aliases": [
+      "eugene"
+    ]
+  },
+  {
+    "primary": "kitten",
+    "aliases": [
+      "kitten64"
+    ]
+  },
+  {
+    "primary": "klaus",
+    "aliases": [
+      "blake",
+      "codefree57",
+      "5469600023335649"
+    ]
+  },
+  {
+    "primary": "kong",
+    "aliases": [
+      "konung",
+      "konung"
+    ]
+  },
+  {
+    "primary": "kran",
+    "aliases": [
+      "maelstrom",
+      "crunch"
+    ]
+  },
+  {
+    "primary": "liam",
+    "aliases": [
+      "LiamNeeson",
+      "liamliam",
+      "krvthecreator",
+      "roman95",
+      "romka95"
+    ]
+  },
+  {
+    "primary": "licor",
+    "aliases": [
+      "grem",
+      "nekonoko"
+    ]
+  },
+  {
+    "primary": "loki",
+    "aliases": [
+      "evgeniya.annenkova",
+      "79525041383"
+    ]
+  },
+  {
+    "primary": "love",
+    "aliases": [
+      "efrain",
+      "prestige"
+    ]
+  },
+  {
+    "primary": "malware.r",
+    "aliases": [
+      "malwrecon",
+      "mlwr"
+    ]
+  },
+  {
+    "primary": "mango",
+    "aliases": [
+      "frances",
+      "khano",
+      "vasyamilov",
+      "bomba777",
+      "sooeta66"
+    ]
+  },
+  {
+    "primary": "many",
+    "aliases": [
+      "neville",
+      "22",
+      "egypt9n",
+      "77712530366",
+      "77014176458",
+      "77019083646",
+      "77052447296",
+      "77057730373",
+      "77474558131",
+      "77479938367",
+      "77767274786",
+      "4400430102625310",
+      "5169493145647536"
+    ]
+  },
+  {
+    "primary": "mark",
+    "aliases": [
+      "asd228"
+    ]
+  },
+  {
+    "primary": "marsel",
+    "aliases": [
+      "flavius"
+    ]
+  },
+  {
+    "primary": "mavemat",
+    "aliases": [
+      "martin",
+      "arnfinnr",
+      "nitro"
+    ]
+  },
+  {
+    "primary": "max",
+    "aliases": [
+      "norris",
+      "AllaWitte",
+      "alla_88"
+    ]
+  },
+  {
+    "primary": "mentos",
+    "aliases": [
+      "weldon",
+      "Vasm",
+      "vdx_vadim1981"
+    ]
+  },
+  {
+    "primary": "merch",
+    "aliases": [
+      "dictyna"
+    ]
+  },
+  {
+    "primary": "mitzi",
+    "aliases": [
+      "rewrite",
+      "most_call",
+      "VLADIMIR",
+      "GODOR",
+      "5228600563533878"
+    ]
+  },
+  {
+    "primary": "moby",
+    "aliases": [
+      "susana"
+    ]
+  },
+  {
+    "primary": "mushroom",
+    "aliases": [
+      "royal",
+      "ivanalert"
+    ]
+  },
+  {
+    "primary": "naned",
+    "aliases": [
+      "powerdxs"
+    ]
+  },
+  {
+    "primary": "nessa",
+    "aliases": [
+      "nessa"
+    ]
+  },
+  {
+    "primary": "nicholas",
+    "aliases": [
+      "asmail",
+      "Samarin",
+      "Alexandr",
+      "4893470277751696"
+    ]
+  },
+  {
+    "primary": "nickolay",
+    "aliases": [
+      "nick.dolbnya"
+    ]
+  },
+  {
+    "primary": "oliver",
+    "aliases": [
+      "strel",
+      "klum519",
+      "maugli567",
+      "78956067884",
+      "79277420599"
+    ]
+  },
+  {
+    "primary": "orin",
+    "aliases": [
+      "orin"
+    ]
+  },
+  {
+    "primary": "page",
+    "aliases": [
+      "nick",
+      "soulst"
+    ]
+  },
+  {
+    "primary": "pankrat",
+    "aliases": [
+      "pankrat"
+    ]
+  },
+  {
+    "primary": "price",
+    "aliases": [
+      "marlin",
+      "alexeipi"
+    ]
+  },
+  {
+    "primary": "professor",
+    "aliases": [
+      "alter"
+    ]
+  },
+  {
+    "primary": "pyro",
+    "aliases": [
+      "chad",
+      "sergsever",
+      "sergsever"
+    ]
+  },
+  {
+    "primary": "rags",
+    "aliases": [
+      "broadcom1"
+    ]
+  },
+  {
+    "primary": "republique",
+    "aliases": [
+      "republique_centrafricaine"
+    ]
+  },
+  {
+    "primary": "reshaev",
+    "aliases": [
+      "Tokyo",
+      "london013",
+      "randomuser1050"
+    ]
+  },
+  {
+    "primary": "rozetka",
+    "aliases": [
+      "landslide",
+      "cps123"
+    ]
+  },
+  {
+    "primary": "salamandra",
+    "aliases": [
+      "StepByStep567"
+    ]
+  },
+  {
+    "primary": "salmon",
+    "aliases": [
+      "lucas",
+      "Lucas21",
+      "salmon21"
+    ]
+  },
+  {
+    "primary": "shtop",
+    "aliases": [
+      "pershing2021"
+    ]
+  },
+  {
+    "primary": "sin",
+    "aliases": [
+      "irishman"
+    ]
+  },
+  {
+    "primary": "skippy",
+    "aliases": [
+      "fire",
+      "dmanager"
+    ]
+  },
+  {
+    "primary": "skywalker",
+    "aliases": [
+      "stevie",
+      "humminghead",
+      "ebaxmg3lpi"
+    ]
+  },
+  {
+    "primary": "snow",
+    "aliases": [
+      "rob0660"
+    ]
+  },
+  {
+    "primary": "soul",
+    "aliases": [
+      "ryan",
+      "it_solutions"
+    ]
+  },
+  {
+    "primary": "specter",
+    "aliases": [
+      "thomas",
+      "prlzrak"
+    ]
+  },
+  {
+    "primary": "steller",
+    "aliases": [
+      "summer"
+    ]
+  },
+  {
+    "primary": "stern",
+    "aliases": [
+      "vincent",
+      "Grave"
+    ]
+  },
+  {
+    "primary": "strix",
+    "aliases": [
+      "valerius2k",
+      "_valerius",
+      "freeos2",
+      "freeos2"
+    ]
+  },
+  {
+    "primary": "sudos",
+    "aliases": [
+      "sudos",
+      "black_palm"
+    ]
+  },
+  {
+    "primary": "support-100",
+    "aliases": [
+      "KottonCoat",
+      "support-100"
+    ]
+  },
+  {
+    "primary": "swift",
+    "aliases": [
+      "kermit",
+      "alexander.r",
+      "battletoad"
+    ]
+  },
+  {
+    "primary": "talar",
+    "aliases": [
+      "alphonse"
+    ]
+  },
+  {
+    "primary": "target",
+    "aliases": [
+      "rayford",
+      "lwgihlilww",
+      "blood2"
+    ]
+  },
+  {
+    "primary": "tent",
+    "aliases": [
+      "tent",
+      "beliesergei"
+    ]
+  },
+  {
+    "primary": "terry",
+    "aliases": [
+      "Garfield"
+    ]
+  },
+  {
+    "primary": "thomas",
+    "aliases": [
+      "feh"
+    ]
+  },
+  {
+    "primary": "tilar",
+    "aliases": [
+      "ramon",
+      "tilbank"
+    ]
+  },
+  {
+    "primary": "tomcat",
+    "aliases": [
+      "send4work"
+    ]
+  },
+  {
+    "primary": "toris",
+    "aliases": [
+      "woldisaev",
+      "WoldIsaev",
+      "WoldIsaev"
+    ]
+  },
+  {
+    "primary": "tunri",
+    "aliases": [
+      "Vladimir Dunaev"
+    ]
+  },
+  {
+    "primary": "van",
+    "aliases": [
+      "dane",
+      "ajrec",
+      "zhukov-vn",
+      "4893470273158813",
+      "2202200333462461",
+      "4279490010557741"
+    ]
+  },
+  {
+    "primary": "venom",
+    "aliases": [
+      "cyb3rr00t1337"
+    ]
+  },
+  {
+    "primary": "viper",
+    "aliases": [
+      "psyverg"
+    ]
+  },
+  {
+    "primary": "wind",
+    "aliases": [
+      "patrick"
+    ]
+  },
+  {
+    "primary": "zanzi",
+    "aliases": [
+      "salsa20",
+      "tiffaninavarro"
+    ]
+  },
+  {
+    "primary": "zevs",
+    "aliases": [
+      "robin",
+      "kalgon",
+      "ugly"
+    ]
+  },
+  {
+    "primary": "zulas",
+    "aliases": [
+      "begemot_sun"
+    ]
+  }
+]
