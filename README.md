@@ -1,13 +1,13 @@
-# Conversation Analyzer
+# Chat Regenerator
 
 A set of tools for processing, analyzing, and visualizing conversation data from various chat platforms.
 
 ## Overview
 
-The Conversation Analyzer allows you to parse, structure, and visualize conversations from different chat sources:
+The Chat Regenerator allows you to parse, structure, and visualize conversations from different chat sources:
 
 1. **Conti Chat Parser** - For processing dual-party conversations from JSON logs
-2. **Group Chat Parser** - For processing multi-party conversations in JSON-like format **NOT WORKNG YET**
+2. **Group Chat Parser** - For processing multi-party conversations in JSON-like format **NOT WORKING YET**
 
 Both modules produce HTML files that allow for interactive annotation of conversations with customizable dropdown categories. The annotated data can be downloaded as CSV for further analysis.
 
@@ -71,9 +71,9 @@ conversation_turns = all_conversations_sorted_with_turns_and_html(
 )
 ```
 
-### Example 2: Processing Group Chats
+<!-- ### Example 2: Processing Group Chats -->
 
-```python
+<!-- ```python
 from convo_regenerator import process_group_chat, get_sample_configs
 
 # Get sample dropdown configurations
@@ -87,7 +87,7 @@ process_group_chat(
     dropdown_configs=dropdown_configs,
     output_dir="output_html"
 )
-```
+``` -->
 
 ### Command Line Usage
 
@@ -95,7 +95,7 @@ You can also run the tools from the command line:
 
 ```bash
 # For Conti chats (if implemented as CLI)
-python conversation_analyzer.py --files logs/chat1.json logs/chat2.json --aliases logs/user_aliases.json --users "user1,user2" "user3,user4" --output "./output_html"
+python convo_regenerator.py --files logs/chat1.json logs/chat2.json --aliases logs/user_aliases.json --users "user1,user2" "user3,user4" --output "./output_html"
 ```
 
 ## Dropdown Configuration
@@ -125,13 +125,10 @@ The generated HTML files allow for:
 
 ## Quick Start
 
-For a quick demonstration of all features, refer to `ExamplesHowTo.ipynb` notebook which provides interactive examples of how to create and use the conversation analyzers.
+For a quick demonstration of all features, refer to `ExamplesHowTo.ipynb` notebook which provides interactive examples of how to create and use the chat regenerators.
 
 ## Dependencies
 
 - Python 3.6+
-- dateutil
-- json
-- re
-- os
-- collections
+- python-dateutil
+- Standard Python libraries (json, re, os, collections)
