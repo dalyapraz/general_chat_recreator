@@ -1,0 +1,4449 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Conversation: baget and bentley</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f9f9f9;
+        margin: 20px;
+    }
+    h2 {
+        color: #333;
+    }
+    .turn {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 8px;
+        clear: both;
+        overflow: auto;
+    }
+    .turn.left {
+        background-color: #f0f0f0;
+        text-align: left;
+        float: left;
+        max-width: 60%;
+    }
+    .turn.right {
+        background-color: #dcf8c6;
+        text-align: right;
+        float: right;
+        max-width: 60%;
+    }
+    .message {
+        margin: 5px 0;
+    }
+    .timestamp {
+        font-size: 0.8em;
+        color: #555;
+    }
+    .dropdown-container {
+        margin-top: 10px;
+        clear: both;
+        font-size: 0.85em;
+        font-style: italic;
+        color: #444;
+    }
+    .category-group, .dropdown-group-container {
+        padding: 5px;
+        margin-bottom: 5px;
+    }
+    .dropdown-group {
+        margin-bottom: 5px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .dropdown-group label {
+        font-weight: bold;
+        margin-right: 5px;
+    }
+    .add-button {
+        font-size: 0.75em;
+        margin-left: 5px;
+        vertical-align: middle;
+    }
+    .download-button {
+        display: block;
+        margin: 40px auto;
+        padding: 10px 20px;
+        font-size: 1em;
+    }
+    .clear {
+        clear: both;
+    }
+</style>
+</head>
+<body>
+<h2>Conversation: baget & bentley</h2>
+<div class="clearfix" id="content">
+
+<script>
+// User variables
+var user_i = "baget";
+var user_j = "bentley";
+
+// Mappings for dependent dropdowns
+var dependentMappings = {
+    '1': {"Personal": ["Sharing info", "Asking question", "Social invitation"], "Work": ["Task assignment", "Status update", "Meeting coordination"]},
+
+};
+
+// Wait for the DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Primary Dropdown Change Event for Dependent Dropdowns ---
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('turn-dropdown')) {
+            var catId = e.target.getAttribute('data-dd');
+            var selected = e.target.value;
+            var catGroup = e.target.closest('[data-cat="' + catId + '"]');
+            
+            if (!catGroup) return;
+            
+            // Check if this is a dependent dropdown
+            if (dependentMappings[catId]) {
+                var depGroup = catGroup.querySelector('.dropdown-group[data-dd="dep"]');
+                var otherGroup = catGroup.querySelector('.dropdown-group[data-dd="other"]');
+                var depSelect = depGroup ? depGroup.querySelector('select') : null;
+                
+                if (selected) {
+                    if (selected === "Other") {
+                        if (depGroup) depGroup.style.display = "none";
+                        if (otherGroup) otherGroup.style.display = "inline-block";
+                    } else if (dependentMappings[catId][selected]) {
+                        if (otherGroup) otherGroup.style.display = "none";
+                        if (depSelect) {
+                            depSelect.innerHTML = '<option value="">--Select--</option>';
+                            dependentMappings[catId][selected].forEach(function(opt) {
+                                var option = document.createElement("option");
+                                option.value = opt;
+                                option.text = opt;
+                                depSelect.appendChild(option);
+                            });
+                            depGroup.style.display = "inline-block";
+                        }
+                    } else {
+                        if (depGroup) depGroup.style.display = "none";
+                        if (otherGroup) otherGroup.style.display = "none";
+                        if (depSelect) depSelect.innerHTML = '<option value="">--Select--</option>';
+                    }
+                } else {
+                    if (depGroup) depGroup.style.display = "none";
+                    if (otherGroup) otherGroup.style.display = "none";
+                    if (depSelect) depSelect.innerHTML = '<option value="">--Select--</option>';
+                }
+            }
+        }
+    });
+
+    // --- Dynamic Add Button Functionality ---
+    document.querySelectorAll('.add-button').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var cat = this.getAttribute("data-cat");
+            var container = this.parentElement;
+            var isDependent = dependentMappings[cat] !== undefined;
+            
+            if (isDependent) {
+                // For dependent dropdowns, clone the entire container
+                var clone = container.cloneNode(true);
+                clone.querySelectorAll('select, input').forEach(function(elem) {
+                    elem.value = "";
+                    elem.removeAttribute('id');
+                });
+                container.parentElement.appendChild(clone);
+            } else {
+                // For simple dropdowns, clone only the dropdown-group
+                var originalGroup = container.querySelector('.dropdown-group');
+                var clone = originalGroup.cloneNode(true);
+                clone.querySelectorAll('select, input').forEach(function(elem) {
+                    elem.value = "";
+                    elem.removeAttribute('id');
+                });
+                container.insertBefore(clone, this);
+            }
+        });
+    });
+
+    // --- CSV Download Functionality ---
+    document.getElementById("downloadCSVButton").addEventListener("click", function() {
+        var csvRows = [];
+        var headers = ["Unit", "Turn", "Intention", "Intention_Detailed", "Tone"];
+        csvRows.push(headers.join(","));
+        
+        var turnDivs = document.querySelectorAll(".turn");
+        turnDivs.forEach(function(turnDiv) {
+            var unit = turnDiv.getAttribute("data-unit") || "";
+            var turn = turnDiv.getAttribute("data-turn") || "";
+            var row = [unit, turn];
+
+            // Process category 1: intention
+            (function() {
+                var cat = 1;
+                var isDependent = true;
+                var catGroups = turnDiv.querySelectorAll('[data-cat="' + cat + '"]');
+                var primaryVals = [];
+                var detailedVals = [];
+                
+                catGroups.forEach(function(group) {
+                    var primary = group.querySelector('select[data-dd="' + cat + '"]');
+                    if (primary && primary.value.trim() !== "") {
+                        primaryVals.push(primary.value.trim());
+                        
+                        if (isDependent) {
+                            var detail = "";
+                            var depSel = group.querySelector('.dropdown-group[data-dd="dep"] select');
+                            var otherInp = group.querySelector('.dropdown-group[data-dd="other"] input');
+                            
+                            if (otherInp && getComputedStyle(otherInp.parentElement).display !== "none" && otherInp.value.trim() !== "") {
+                                detail = otherInp.value.trim();
+                            } else if (depSel && getComputedStyle(depSel.parentElement).display !== "none" && depSel.value.trim() !== "") {
+                                detail = depSel.value.trim();
+                            }
+                            
+                            if (detail !== "") {
+                                detailedVals.push(detail);
+                            }
+                        }
+                    }
+                });
+                
+                row.push(primaryVals.join(";"));
+                if (isDependent) {
+                    row.push(detailedVals.join(";"));
+                }
+            })();
+
+            // Process category 2: tone
+            (function() {
+                var cat = 2;
+                var isDependent = false;
+                var catGroups = turnDiv.querySelectorAll('[data-cat="' + cat + '"]');
+                var primaryVals = [];
+                var detailedVals = [];
+                
+                catGroups.forEach(function(group) {
+                    var primary = group.querySelector('select[data-dd="' + cat + '"]');
+                    if (primary && primary.value.trim() !== "") {
+                        primaryVals.push(primary.value.trim());
+                        
+                        if (isDependent) {
+                            var detail = "";
+                            var depSel = group.querySelector('.dropdown-group[data-dd="dep"] select');
+                            var otherInp = group.querySelector('.dropdown-group[data-dd="other"] input');
+                            
+                            if (otherInp && getComputedStyle(otherInp.parentElement).display !== "none" && otherInp.value.trim() !== "") {
+                                detail = otherInp.value.trim();
+                            } else if (depSel && getComputedStyle(depSel.parentElement).display !== "none" && depSel.value.trim() !== "") {
+                                detail = depSel.value.trim();
+                            }
+                            
+                            if (detail !== "") {
+                                detailedVals.push(detail);
+                            }
+                        }
+                    }
+                });
+                
+                row.push(primaryVals.join(";"));
+                if (isDependent) {
+                    row.push(detailedVals.join(";"));
+                }
+            })();
+
+            csvRows.push(row.join(","));
+        });
+        
+        var csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "conversation_baget_bentley_coded.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+});
+</script>
+<div class="turn right" data-unit="0" data-turn="0">
+<strong>Turn 1 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-07-14 10:09:44.299871</span> - <span class="text">Привет!</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="0" data-turn="0">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="0" data-turn="0">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="0" data-turn="1">
+<strong>Turn 2 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-07-14 10:10:10.468742</span> - <span class="text">Привет</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="0" data-turn="1">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="0" data-turn="1">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="0" data-turn="2">
+<strong>Turn 3 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-07-14 10:10:30.003039</span> - <span class="text">Дружище, на полный прогон бекдор тебе отдавать?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="0" data-turn="2">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="0" data-turn="2">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="0" data-turn="3">
+<strong>Turn 4 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-07-14 10:11:27.089405</span> - <span class="text">Да давай.</span></div>
+<div class="message"><span class="timestamp">2020-07-14 10:11:31.415445</span> - <span class="text">У тебя с лоадером?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="0" data-turn="3">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="0" data-turn="3">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="0" data-turn="4">
+<strong>Turn 5 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-07-14 10:11:40.908001</span> - <span class="text">Да, конечно.</span></div>
+<div class="message"><span class="timestamp">2020-07-14 10:12:36.159792</span> - <span class="text">Тебе сбросить исходники или прислать бинарники или как?:-)</span></div>
+<div class="message"><span class="timestamp">2020-07-14 10:13:55.345640</span> - <span class="text">Процедурный, так сказать, момент...:-)</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="0" data-turn="4">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="0" data-turn="4">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="0" data-turn="5">
+<strong>Turn 6 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-07-14 10:15:31.565169</span> - <span class="text">Лучше ехею Мы его криптанем и проверим</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="0" data-turn="5">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="0" data-turn="5">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="0" data-turn="6">
+<strong>Turn 7 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-07-14 10:16:23.003953</span> - <span class="text">ок</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="0" data-turn="6">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="0" data-turn="6">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="1" data-turn="0">
+<strong>Turn 8 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-07-22 12:37:22.872208</span> - <span class="text">Привет.</span></div>
+<div class="message"><span class="timestamp">2020-07-22 12:37:26.764586</span> - <span class="text">Можешь помочь?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="1" data-turn="0">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="1" data-turn="0">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="1" data-turn="1">
+<strong>Turn 9 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-07-22 12:37:41.573869</span> - <span class="text">Привет.</span></div>
+<div class="message"><span class="timestamp">2020-07-22 12:37:44.172126</span> - <span class="text">Говори.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="1" data-turn="1">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="1" data-turn="1">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="1" data-turn="2">
+<strong>Turn 10 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-07-22 12:37:49.160448</span> - <span class="text"><kent> https://dpn56ohf2hl46t2t.onion/ не срабатывает команда внц
+[19:36:01] <kent> не поднимаеться внц у ботов
+[19:36:06] <bentley> Что говрит?
+[19:36:16] <bentley> Просто не отрабатывает или еще какая-то ошабка?
+[19:36:18] <bentley> ошибка
+[19:36:45] <kent> ни чего не говорит, жму старт отдамю команду
+[19:37:00] <kent> и далее ни чего
+[19:37:19] <kent> пути к внц нет, кнопка open не загораеться</span></div>
+<div class="message"><span class="timestamp">2020-07-22 12:37:57.215053</span> - <span class="text">Как всегда с проблемами к тебе )</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="1" data-turn="2">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="1" data-turn="2">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="1" data-turn="3">
+<strong>Turn 11 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-07-22 12:39:08.236341</span> - <span class="text">Гм, боты подняты...</span></div>
+<div class="message"><span class="timestamp">2020-07-22 12:39:18.919278</span> - <span class="text">Пусть сбросит индексы.</span></div>
+<div class="message"><span class="timestamp">2020-07-22 12:39:33.347019</span> - <span class="text">16598079AC17BB0D9FB6E68B5D12C32C  - например.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="1" data-turn="3">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="1" data-turn="3">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="1" data-turn="4">
+<strong>Turn 12 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-07-22 12:41:10.114796</span> - <span class="text"> <kent> 14EAC24201A8404A42006043F228B280
+1DEF53DE6D23675B030D94E3EE47F153
+434EDA0CAB7BF039F68D0518F38BA7B2
+[19:40:41] <kent> ну вот боты, у всех 3-оих такая делюга</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="1" data-turn="4">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="1" data-turn="4">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="1" data-turn="5">
+<strong>Turn 13 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-07-22 12:41:59.842821</span> - <span class="text">Сейчас посмотрим.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="1" data-turn="5">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="1" data-turn="5">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="0">
+<strong>Turn 14 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:52:54.810507</span> - <span class="text">Привет.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="0">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="0">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="1">
+<strong>Turn 15 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:53:21.832281</span> - <span class="text">Привет</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="1">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="1">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="2">
+<strong>Turn 16 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:54:00.828661</span> - <span class="text">Извини, что отвлекаю.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:54:15.407733</span> - <span class="text">А что у нас с сервером?</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:54:25.814168</span> - <span class="text">Я не совсем понял...</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="2">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="2">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="3">
+<strong>Turn 17 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:54:27.478677</span> - <span class="text">С каким?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="3">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="3">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="4">
+<strong>Turn 18 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:54:52.993259</span> - <span class="text"> А на сервере не работает лоадер-бэкдор совсем. Надо доделать. Потом под АВ тестить-чистить.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:55:00.990090</span> - <span class="text">На каком?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="4">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="4">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="5">
+<strong>Turn 19 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:55:19.793014</span> - <span class="text">Ааа</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:55:25.438704</span> - <span class="text">2019 тестировал</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="5">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="5">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="6">
+<strong>Turn 20 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:55:31.852756</span> - <span class="text">То есть?</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:55:48.748729</span> - <span class="text">Ты стартовал бекдор на 2019, и он не пошел?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="6">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="6">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="7">
+<strong>Turn 21 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:55:52.842035</span> - <span class="text">Да</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="7">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="7">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="8">
+<strong>Turn 22 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:56:05.748478</span> - <span class="text">Сервере?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="8">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="8">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="9">
+<strong>Turn 23 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:56:11.192487</span> - <span class="text">Да</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="9">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="9">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="10">
+<strong>Turn 24 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:56:19.427446</span> - <span class="text">Так, а что ты хотел?</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:56:31.309631</span> - <span class="text">У него же все порты по умолчанию закрыты.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="10">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="10">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="11">
+<strong>Turn 25 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:56:31.582378</span> - <span class="text">Чтобы работало на 7 10 и сервере</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:56:49.900278</span> - <span class="text">У других кодеров работает БК</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="11">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="11">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="12">
+<strong>Turn 26 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:57:01.403457</span> - <span class="text">На 2019 сервере???</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="12">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="12">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="13">
+<strong>Turn 27 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:57:05.959675</span> - <span class="text">Да</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="13">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="13">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="14">
+<strong>Turn 28 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:57:07.039689</span> - <span class="text">С ходу?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="14">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="14">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="15">
+<strong>Turn 29 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:57:11.904784</span> - <span class="text">Да</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="15">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="15">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="16">
+<strong>Turn 30 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:57:46.035359</span> - <span class="text">Бред, но ладно.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="16">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="16">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="17">
+<strong>Turn 31 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:57:57.459765</span> - <span class="text">Нет работает у Вана Машрума</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:58:03.759167</span> - <span class="text">Кактуса</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="17">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="17">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="18">
+<strong>Turn 32 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:58:29.212623</span> - <span class="text">Так мы же для теста нестандартными портами пользуемся.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:58:39.924382</span> - <span class="text">Как они работать на сервере могут?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="18">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="18">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="19">
+<strong>Turn 33 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:58:46.944581</span> - <span class="text">хз</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:58:52.284953</span> - <span class="text">Но работают</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="19">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="19">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="20">
+<strong>Turn 34 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:58:57.276400</span> - <span class="text">Подсказываю - никак.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 13:59:03.950009</span> - <span class="text">Исключено.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="20">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="20">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="21">
+<strong>Turn 35 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:59:10.113422</span> - <span class="text">Я тестил - работают</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="21">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="21">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="22">
+<strong>Turn 36 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:59:48.378601</span> - <span class="text">Он че, редакт фаервола вставил к себе?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="22">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="22">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="23">
+<strong>Turn 37 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 13:59:59.666700</span> - <span class="text">Я хз спроси у вана</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="23">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="23">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="24">
+<strong>Turn 38 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 14:00:02.207866</span> - <span class="text">Делать мужику нечего...</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:00:13.029330</span> - <span class="text">Хорошо, спрошу.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:00:15.871170</span> - <span class="text">Спасибо.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="24">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="24">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="25">
+<strong>Turn 39 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 14:38:46.568491</span> - <span class="text">Бентли, а на всякий случай.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:39:19.208902</span> - <span class="text">Ты не мог бы оттестить бекдор на 2019, но предподоткрыв наш портик?</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:39:29.815796</span> - <span class="text">А-то, вдруг не в нем дело...</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:39:50.684710</span> - <span class="text">А мы не туда пойдем?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="25">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="25">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="26">
+<strong>Turn 40 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 14:39:52.326453</span> - <span class="text">Это не имеет смысла клиенты не открывают порты</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="26">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="26">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="27">
+<strong>Turn 41 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 14:40:15.106455</span> - <span class="text">А клиентам порты открывать не надо.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:40:30.998914</span> - <span class="text">В рабочей версии мы по стандартным работам.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:40:49.632108</span> - <span class="text">А они -открыты.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:41:01.483911</span> - <span class="text">Даже на 2019.:-)</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:41:21.740188</span> - <span class="text">Посмотри, пожалуйста, а я пока согласую ТЗ.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="27">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="27">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="28">
+<strong>Turn 42 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 14:41:40.067217</span> - <span class="text">не совсем поянл что ты хочешь что бы я посмотрел</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="28">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="28">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="29">
+<strong>Turn 43 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 14:42:00.714877</span> - <span class="text">Ну, порт открой и посмотри  - пашет или нет?</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:42:47.083504</span> - <span class="text">Тоже самое, что под в7 и в10, только порт открой.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:42:56.682244</span> - <span class="text">Пожа-а-а-алуйста.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:43:09.230724</span> - <span class="text">Это - реально важно.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="29">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="29">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="30">
+<strong>Turn 44 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 14:43:29.539166</span> - <span class="text">Как открыть?</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:43:46.037355</span> - <span class="text">Какой порт?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="30">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="30">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="31">
+<strong>Turn 45 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 14:43:49.344779</span> - <span class="text">В файерволе.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:43:53.379532</span> - <span class="text">А, сек.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:44:58.670541</span> - <span class="text">12232</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:45:22.398294</span> - <span class="text">Спасибо заранее.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 14:47:11.168712</span> - <span class="text">Протокол TCP.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 15:11:01.536840</span> - <span class="text">Как прогонишь, маякни пожалуйста.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="31">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="31">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="32">
+<strong>Turn 46 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 15:11:09.917108</span> - <span class="text">Ок</span></div>
+<div class="message"><span class="timestamp">2020-08-06 15:11:15.008550</span> - <span class="text">через час не раньше</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="32">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="32">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="33">
+<strong>Turn 47 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 15:11:15.331205</span> - <span class="text">Может там и не порт...</span></div>
+<div class="message"><span class="timestamp">2020-08-06 15:11:23.577589</span> - <span class="text">Да-да, конечно.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 15:11:31.299331</span> - <span class="text">Я буду ждать.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 15:11:54.254410</span> - <span class="text">Не хватало, что бы меня какой-то Кактус переплюнул...:-)</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="33">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="33">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="34">
+<strong>Turn 48 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 15:12:05.378104</span> - <span class="text">))</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="34">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="34">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="35">
+<strong>Turn 49 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 17:26:17.230478</span> - <span class="text">Так. А та сборка от 4 актуальна?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="35">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="35">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="36">
+<strong>Turn 50 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:18:12.629657</span> - <span class="text">Ой, прости.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:18:23.925682</span> - <span class="text">Да, конечно.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:18:54.368053</span> - <span class="text">Полностью.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:20:17.935156</span> - <span class="text">Ты что, еще работаешь?</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:20:31.713037</span> - <span class="text">Вижу.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="36">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="36">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="37">
+<strong>Turn 51 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:20:32.993392</span> - <span class="text">Не уже на завтра, бро</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="37">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="37">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="38">
+<strong>Turn 52 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:20:48.733451</span> - <span class="text">Друже, как скажешь.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:21:19.236370</span> - <span class="text">Мне теперь этого Кактуса завалить надо, сволочь эту...:-)</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:21:42.018792</span> - <span class="text">Шутка.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="38">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="38">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="39">
+<strong>Turn 53 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:21:47.761909</span> - <span class="text">))</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="39">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="39">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="40">
+<strong>Turn 54 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:21:52.968522</span> - <span class="text">Касаемо сволочи.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="40">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="40">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="41">
+<strong>Turn 55 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:21:56.125176</span> - <span class="text">Вы бы в кску погамали ))</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="41">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="41">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="42">
+<strong>Turn 56 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:22:05.283164</span> - <span class="text">Чего?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="42">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="42">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="43">
+<strong>Turn 57 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:22:10.436736</span> - <span class="text">Или пабг ))</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:22:14.195512</span> - <span class="text">Стрелялки</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="43">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="43">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="44">
+<strong>Turn 58 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:22:23.891407</span> - <span class="text">Брат.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:22:45.070426</span> - <span class="text">А ты бы не мог по - русски...</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:22:50.175217</span> - <span class="text">Если не сложно.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="44">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="44">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="45">
+<strong>Turn 59 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:23:06.628552</span> - <span class="text">Ты не играешь в компьютерные игры?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="45">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="45">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="46">
+<strong>Turn 60 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:23:12.974212</span> - <span class="text">Играю.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="46">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="46">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="47">
+<strong>Turn 61 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:23:24.735243</span> - <span class="text">Вот в какие?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="47">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="47">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="48">
+<strong>Turn 62 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:23:52.261253</span> - <span class="text">Ну, витчера закрыл, в ассасина греческого прошел.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:24:05.120356</span> - <span class="text">Шестая цива не в кайф.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:24:15.878349</span> - <span class="text">Хотя тоже не поленился.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="48">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="48">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="49">
+<strong>Turn 63 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:24:33.416903</span> - <span class="text">Оо Я сам в циву люблю</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:24:37.921472</span> - <span class="text">И Шутаны</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:24:42.087761</span> - <span class="text">Батл филд 4</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="49">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="49">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="50">
+<strong>Turn 64 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:24:59.941807</span> - <span class="text">Согласись!!!</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:25:18.902596</span> - <span class="text">фаллаут 4 не приколол.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="50">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="50">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="51">
+<strong>Turn 65 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:25:33.959512</span> - <span class="text">Ваще шлак</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:25:37.752029</span> - <span class="text">1-2 - огонь</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="51">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="51">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="52">
+<strong>Turn 66 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:25:52.804164</span> - <span class="text">Третий - реально круче.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:26:06.355130</span> - <span class="text">Я помню, как в первый играл...:-)</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:26:08.642422</span> - <span class="text">Согласен.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="52">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="52">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="53">
+<strong>Turn 67 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:26:18.193031</span> - <span class="text">Ага</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:26:21.836151</span> - <span class="text">Я тоже</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="53">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="53">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="54">
+<strong>Turn 68 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:26:23.189380</span> - <span class="text">Ты, к слову, наш проект видел?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="54">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="54">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="55">
+<strong>Turn 69 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:26:24.200067</span> - <span class="text">в 2000</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:26:30.629745</span> - <span class="text">Какой именно?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="55">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="55">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="56">
+<strong>Turn 70 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:26:37.116083</span> - <span class="text">Сек.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:26:43.616013</span> - <span class="text">Ссылку дам.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:26:51.847467</span> - <span class="text">Щаз найду.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="56">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="56">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="57">
+<strong>Turn 71 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:27:14.754031</span> - <span class="text">джавай</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="57">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="57">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="58">
+<strong>Turn 72 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:27:22.507151</span> - <span class="text">сек</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:27:37.083200</span> - <span class="text">очень не плохо.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:27:50.140761</span> - <span class="text">клон, но неплохо.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:29:14.051792</span> - <span class="text">К слову, это отдельно, посмотри Phornix Point Danfort</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:29:45.380790</span> - <span class="text">Это -уфа.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="58">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="58">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="59">
+<strong>Turn 73 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:29:53.264792</span> - <span class="text">Buhfk d ytt tot rjulf ,tnrf ,skf</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:30:06.236895</span> - <span class="text">Играл в нее когда еще бетка была. Феникс поинт</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="59">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="59">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="60">
+<strong>Turn 74 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:30:23.301589</span> - <span class="text">И?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="60">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="60">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="61">
+<strong>Turn 75 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:30:39.029802</span> - <span class="text">Клева. Надо поиграть как нибудь еще</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="61">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="61">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="62">
+<strong>Turn 76 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:31:31.598367</span> - <span class="text">А касаемо fallout, посмотри - A.T.O.M</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:32:25.852670</span> - <span class="text">на torrent-igruha есть полностью рабочая версия.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:32:41.407079</span> - <span class="text">Лучшее от 1 и 2 фаллаута.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:32:50.617531</span> - <span class="text">Наши писали.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="62">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="62">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="63">
+<strong>Turn 77 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:33:09.957260</span> - <span class="text">посотрю</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="63">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="63">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="64">
+<strong>Turn 78 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:33:39.997663</span> - <span class="text">Я и не знал, что ты тоже играть любишь.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="64">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="64">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="65">
+<strong>Turn 79 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:33:49.410558</span> - <span class="text">Ага в виходные )</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:33:56.201890</span> - <span class="text">В будни нет времени</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="65">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="65">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="2" data-turn="66">
+<strong>Turn 80 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:34:23.403461</span> - <span class="text">Хоф - не любит, Буза - не любит, падаваны мои  - не любят!</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:34:43.890337</span> - <span class="text">Наконец-то встретил родственную душу.</span></div>
+<div class="message"><span class="timestamp">2020-08-06 19:34:47.191769</span> - <span class="text">:-)</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="66">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="66">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="2" data-turn="67">
+<strong>Turn 81 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-06 19:34:49.381430</span> - <span class="text">))</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="2" data-turn="67">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="2" data-turn="67">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="3" data-turn="0">
+<strong>Turn 82 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:37:11.616883</span> - <span class="text">Привет ))</span></div>
+<div class="message"><span class="timestamp">2020-08-19 15:37:14.121961</span> - <span class="text">Как сам?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="0">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="0">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="3" data-turn="1">
+<strong>Turn 83 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:37:52.420566</span> - <span class="text">Привет!</span></div>
+<div class="message"><span class="timestamp">2020-08-19 15:37:55.536599</span> - <span class="text">Спасибо.</span></div>
+<div class="message"><span class="timestamp">2020-08-19 15:38:00.395284</span> - <span class="text">Более-менее.</span></div>
+<div class="message"><span class="timestamp">2020-08-19 15:38:04.514350</span> - <span class="text">Жарко.:-)</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="1">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="1">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="3" data-turn="2">
+<strong>Turn 84 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:38:22.702259</span> - <span class="text">Ага ))</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="2">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="2">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="3" data-turn="3">
+<strong>Turn 85 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:38:38.478219</span> - <span class="text">У меня ноут выгорел, блин.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="3">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="3">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="3" data-turn="4">
+<strong>Turn 86 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:38:42.874216</span> - <span class="text">Хотел освежить историю с БК На чем мы остановились?</span></div>
+<div class="message"><span class="timestamp">2020-08-19 15:38:49.446397</span> - <span class="text">Ваще жопа</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="4">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="4">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="3" data-turn="5">
+<strong>Turn 87 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:38:54.725216</span> - <span class="text">На 2019 сервере.</span></div>
+<div class="message"><span class="timestamp">2020-08-19 15:39:02.661125</span> - <span class="text">Лоадер я тоже сделал.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="5">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="5">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="3" data-turn="6">
+<strong>Turn 88 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:39:05.428894</span> - <span class="text">Такс  ичто там сделать?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="6">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="6">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="3" data-turn="7">
+<strong>Turn 89 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:39:08.186114</span> - <span class="text">В 8 кБ уложил.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="7">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="7">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="3" data-turn="8">
+<strong>Turn 90 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:39:17.585958</span> - <span class="text">Круть!</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="8">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="8">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="3" data-turn="9">
+<strong>Turn 91 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:40:00.429744</span> - <span class="text">На  сервере 19 мы, похоже, уперлись в файервол.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="9">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="9">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="3" data-turn="10">
+<strong>Turn 92 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:40:37.262050</span> - <span class="text">Аа. ДАш сборку погдлядеть?</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="10">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="10">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="3" data-turn="11">
+<strong>Turn 93 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:40:53.661022</span> - <span class="text">Ну, и плюс к этому я сделал то, что мы планировали с Бузой.</span></div>
+<div class="message"><span class="timestamp">2020-08-19 15:41:06.290518</span> - <span class="text">Да, конечно.</span></div>
+<div class="message"><span class="timestamp">2020-08-19 15:41:42.363546</span> - <span class="text">Давай чуть позже, если можно.</span></div>
+<div class="message"><span class="timestamp">2020-08-19 15:41:52.416332</span> - <span class="text">Я как раз ее заканчиваю.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="11">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="11">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="3" data-turn="12">
+<strong>Turn 94 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2020-08-19 15:42:44.500291</span> - <span class="text">Ок</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="3" data-turn="12">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="3" data-turn="12">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="4" data-turn="0">
+<strong>Turn 95 (baget):</strong><br>
+<div class="message"><span class="timestamp">2020-08-28 09:04:26.868828</span> - <span class="text">Привет.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="4" data-turn="0">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="4" data-turn="0">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn left" data-unit="5" data-turn="0">
+<strong>Turn 96 (bentley):</strong><br>
+<div class="message"><span class="timestamp">2021-04-07 14:27:20.188609</span> - <span class="text">Привет. )</span></div>
+<div class="message"><span class="timestamp">2021-04-07 14:27:25.449863</span> - <span class="text">Давно не писал тебе.</span></div>
+<div class="message"><span class="timestamp">2021-04-07 14:27:32.292607</span> - <span class="text">Помоги, пожалуйста с внц</span></div>
+<div class="message"><span class="timestamp">2021-04-07 14:27:50.351511</span> - <span class="text"> <nevada> Привет, внц не меняли ? то что-то лагает жесть 
+[17:22:39] <bentley> привет вроде нет уточню 
+[17:22:48] <bentley> долго думает или не подключаетсявобще? 
+[17:23:13] <nevada> внутри долго думает и постоянно разрывы дут 
+[17:23:15] <nevada> идут* 
+[17:23:26] <bentley> На каждом линке? 
+[17:23:46] <nevada> когда как 
+[17:24:16] <nevada> есть какой-то лок на линки какие то ? я просто даже на почту холдера не могу зайти (яху) 
+[17:25:55] <nevada> а проксю не меняли на внц ? которая возле ид вписана уже</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="5" data-turn="0">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="5" data-turn="0">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="turn right" data-unit="5" data-turn="1">
+<strong>Turn 97 (baget):</strong><br>
+<div class="message"><span class="timestamp">2021-04-07 14:47:53.623339</span> - <span class="text">глянем.</span></div>
+<div class="dropdown-container">
+<div class="category-group" data-cat="1" data-unit="5" data-turn="1">
+<div class="dropdown-group" data-dd="1">
+<label>Intention: </label>
+<select class="turn-dropdown" data-dd="1">
+<option value="">--None--</option>
+<option value="Personal">Personal</option>
+<option value="Work">Work</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="dep" style="display:none;">
+<label>Detailed: </label>
+<select class="dependent-dropdown" data-dd="dep">
+<option value="">--Select--</option>
+</select>
+</div>
+<div class="dropdown-group" data-dd="other" style="display:none;">
+<label>Please specify: </label>
+<input type="text" class="other-input" data-dd="other" />
+</div>
+<button type="button" class="add-button" data-cat="1">Add Intention</button>
+</div>
+<div class="dropdown-group-container" data-cat="2" data-unit="5" data-turn="1">
+<div class="dropdown-group" data-dd="2">
+<label>Tone: </label>
+<select class="turn-dropdown" data-dd="2">
+<option value="">--None--</option>
+<option value="Happy">Happy</option>
+<option value="Sad">Sad</option>
+<option value="Urgent">Urgent</option>
+<option value="Casual">Casual</option>
+<option value="Formal">Formal</option>
+</select>
+</div>
+<button type="button" class="add-button" data-cat="2">Add Tone</button>
+</div>
+</div>
+</div>
+<div class="clear"></div>
+<button class="download-button" id="downloadCSVButton">Download</button>
+
+</div>
+</body>
+</html>
