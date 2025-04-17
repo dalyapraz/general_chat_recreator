@@ -58,8 +58,8 @@ tone_config = {
 dropdown_configs = [intention_config, tone_config]
 
 # Process conversations and generate HTML
-files = ['logs/chat_logs.json', 'logs/jabber_logs.json']
-user_aliases = 'logs/user_match_list.json'
+files = ['logs/Conti_chat_logs.json', 'logs/Conti_jabber_logs.json']
+user_aliases = 'logs/Conti_user match list.json'
 output_pairs = [('user1', 'user2'), ('user3', 'user4')]
 
 conversation_turns = all_conversations_sorted_with_turns_and_html(
@@ -95,7 +95,7 @@ You can also run the tools from the command line:
 
 ```bash
 # For Conti chats (if implemented as CLI)
-python convo_regenerator.py --files logs/chat1.json logs/chat2.json --aliases logs/user_aliases.json --users "user1,user2" "user3,user4" --output "./output_html"
+python convo_regenerator.py --files logs/Conti_chat_logs.json logs/Conti_jabber_logs.json --aliases logs/Conti_user match list.json --users "user1,user2" "user3,user4" --output "./output_html"
 ```
 
 ## Dropdown Configuration
