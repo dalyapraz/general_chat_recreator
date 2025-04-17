@@ -27,6 +27,7 @@ def parse_group_chat(file_path: str) -> List[Dict]:
         content = f.read()
     
     # Split the content by message blocks (each message is a JSON-like block)
+    # This handles both {}.{} format and separate {} blocks with whitespace
     message_blocks = re.split(r'}\s*{', content)
     
     # Fix the first and last blocks to ensure they're valid JSON
@@ -36,26 +37,25 @@ def parse_group_chat(file_path: str) -> List[Dict]:
     
     messages = []
     for block in message_blocks:
-        # Convert the block to proper JSON format
-        block = '{' + block + '}'
-        
-        # Remove any JavaScript-style comments
-        block = re.sub(r'//.*?\n', '\n', block)
-        
-        # Replace single quotes with double quotes for JSON compatibility
-        block = block.replace("'", '"')
-        
-        # Clean up the keys (remove spaces, add quotes)
-        block = re.sub(r'(\w+):\s*', r'"\1": ', block)
-        
         try:
-            message = json.loads(block)
-            # Parse timestamp to datetime object
-            if 'timestamp' in message:
-                message['timestamp'] = dateutil.parser.parse(message['timestamp'])
-            messages.append(message)
-        except json.JSONDecodeError as e:
-            print(f"Error parsing message block: {e}")
+            # Process the block manually instead of trying to convert to JSON
+            timestamp_match = re.search(r'timestamp:\s*([\d-]+\s+[\d:]+)', block)
+            chat_id_match = re.search(r'chat_id:\s*!([^:\s]+)', block)
+            sender_match = re.search(r'sender_alias:\s*@?([^:\s]+)', block)
+            message_match = re.search(r'message:\s*(.*?)(?=\s*$|\s*,\s*\w+:)', block, re.DOTALL)
+            
+            if timestamp_match and chat_id_match and sender_match and message_match:
+                message = {
+                    'timestamp': dateutil.parser.parse(timestamp_match.group(1)),
+                    'chat_id': '!' + chat_id_match.group(1),
+                    'sender_alias': sender_match.group(1),
+                    'message': message_match.group(1).strip()
+                }
+                messages.append(message)
+            else:
+                print(f"Couldn't extract all fields from block: {block}")
+        except Exception as e:
+            print(f"Error processing message block: {e}")
             print(f"Problematic block: {block}")
     
     return messages
@@ -81,7 +81,9 @@ def group_chat_to_html(messages: List[Dict], chat_id: str, main_user: str, html_
             config['csv_column'] = config['label']
     
     # Filter messages for the specified chat_id
-    chat_messages = [msg for msg in messages if msg.get('chat_id') == chat_id]
+    # Strip server part from chat_id if present
+    chat_id_base = chat_id.split(':')[0] if ':' in chat_id else chat_id
+    chat_messages = [msg for msg in messages if msg.get('chat_id', '').startswith(chat_id_base)]
     
     if not chat_messages:
         print(f"No messages found for chat_id: {chat_id}")
@@ -93,6 +95,10 @@ def group_chat_to_html(messages: List[Dict], chat_id: str, main_user: str, html_
     # Get unique users in the chat
     users = set(msg.get('sender_alias', '') for msg in chat_messages)
     print(f"Users in chat: {', '.join(users)}")
+    
+    # Strip domain from main_user if needed
+    main_user_base = main_user.split(':')[0] if ':' in main_user else main_user
+    main_user_base = main_user_base.lstrip('@')
     
     # Group messages by sender and turn
     turns = []
@@ -218,7 +224,7 @@ def group_chat_to_html(messages: List[Dict], chat_id: str, main_user: str, html_
 <script>
 // Chat variables
 var chat_id = "{chat_id}";
-var main_user = "{main_user}";
+var main_user = "{main_user_base}";
 
 // Mappings for dependent dropdowns
 var dependentMappings = {{
@@ -379,7 +385,9 @@ document.addEventListener('DOMContentLoaded', function() {
         link.setAttribute("href", encodedUri);
         link.setAttribute("download", "group_chat_"""
 
-    html += f"{chat_id.replace(':', '_').replace('!', '')}_coded.csv"
+    # Create a safe filename by removing special characters
+    safe_chat_id = ''.join(c for c in chat_id if c.isalnum() or c in '_-')
+    html += f"{safe_chat_id}_coded.csv"
     
     html += """");
         document.body.appendChild(link);
@@ -393,9 +401,13 @@ document.addEventListener('DOMContentLoaded', function() {
     # Build conversation turns with the dropdowns
     for turn_idx, turn in enumerate(turns):
         sender = turn[0].get('sender_alias', '')
-        alignment = "right" if sender == main_user else "left"
-        html += f'<div class="turn {alignment}" data-turn="{turn_idx}" data-sender="{sender}">\n'
-        html += f'<strong>Turn {turn_idx + 1} ({sender}):</strong><br>\n'
+        # Strip domain from sender for comparison
+        sender_base = sender.split(':')[0] if ':' in sender else sender
+        sender_base = sender_base.lstrip('@')
+        
+        alignment = "right" if sender_base == main_user_base else "left"
+        html += f'<div class="turn {alignment}" data-turn="{turn_idx}" data-sender="{sender_base}">\n'
+        html += f'<strong>Turn {turn_idx + 1} ({sender_base}):</strong><br>\n'
         for msg in turn:
             timestamp = msg.get('timestamp', '')
             message_text = msg.get('message', '')
@@ -477,8 +489,8 @@ def process_group_chat(
     
     Args:
         file_path: Path to the group chat file
-        chat_id: The chat ID to filter for
-        main_user: The username for the main user (messages will be shown on the right)
+        chat_id: The chat ID to filter for (can include server part, which will be stripped)
+        main_user: The username for the main user (can include server part, which will be stripped)
         dropdown_configs: Configuration for HTML dropdowns
         output_dir: Directory to output HTML files (optional)
     """
@@ -489,10 +501,15 @@ def process_group_chat(
     messages = parse_group_chat(file_path)
     print(f"Parsed {len(messages)} messages from {file_path}")
     
+    # Strip server parts from chat_id and main_user if present
+    chat_id_base = chat_id.split(':')[0] if ':' in chat_id else chat_id
+    main_user_base = main_user.split(':')[0] if ':' in main_user else main_user
+    main_user_base = main_user_base.lstrip('@')
+    
     # Generate HTML file
-    safe_chat_id = chat_id.replace(':', '_').replace('!', '')
+    safe_chat_id = ''.join(c for c in chat_id_base if c.isalnum() or c in '_-')
     html_file = os.path.join(output_dir, f'group_chat_{safe_chat_id}.html')
-    group_chat_to_html(messages, chat_id, main_user, html_file, dropdown_configs)
+    group_chat_to_html(messages, chat_id_base, main_user_base, html_file, dropdown_configs)
 
 
 def get_sample_configs():
@@ -547,8 +564,8 @@ if __name__ == "__main__":
     # Terminal execution
     parser = argparse.ArgumentParser(description='Process group chat log files and generate HTML conversation views')
     parser.add_argument('--file', required=True, help='Path to group chat log file')
-    parser.add_argument('--chat_id', required=True, help='Chat ID to filter for')
-    parser.add_argument('--main_user', required=True, help='Main user (messages shown on the right)')
+    parser.add_argument('--chat_id', required=True, help='Chat ID to filter for (server part will be stripped)')
+    parser.add_argument('--main_user', required=True, help='Main user (messages shown on the right, server part will be stripped)')
     parser.add_argument('--output', default='./output_html', help='Directory to output HTML file')
     parser.add_argument('--config', default='sample', help='Path to dropdown configuration file (JSON) or "sample" for default configs')
     
