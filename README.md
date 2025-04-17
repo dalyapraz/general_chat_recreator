@@ -24,8 +24,8 @@ Both modules produce HTML files that allow for interactive annotation of convers
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/convo_regenerator.git
-cd convo_regenerator
+git clone https://github.com/yourusername/general_chat_recreator.git
+cd general_chat_recreator
 
 # Install required dependencies
 pip install -r requirements.txt
