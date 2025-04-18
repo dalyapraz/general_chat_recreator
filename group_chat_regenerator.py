@@ -1,64 +1,63 @@
 import json
 import os
-import re
-import argparse
 import dateutil.parser
-from typing import Dict, List, Union, Any, Tuple
+from typing import Dict, List, Any
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 
 def parse_group_chat(file_path: str) -> List[Dict]:
     """
-    Parse a file containing group chat messages in the format:
-    {
-        timestamp: 2023-09-18 13:35:07,
-        chat_id: !VdvDXHFZwWDpIAtpCj:matrix.bestflowers247.online,
-        sender_alias: @usernamenn:matrix.bestflowers247.online,
-        message: BAZA
-    }
+    Parse a file containing clean group chat messages in JSON format.
     
     Args:
-        file_path: Path to the group chat file
+        file_path: Path to the group chat JSON file
         
     Returns:
         List of message dictionaries
     """
     with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+        messages = json.load(f)
     
-    # Split the content by message blocks (each message is a JSON-like block)
-    # This handles both {}.{} format and separate {} blocks with whitespace
-    message_blocks = re.split(r'}\s*{', content)
-    
-    # Fix the first and last blocks to ensure they're valid JSON
-    if message_blocks:
-        message_blocks[0] = message_blocks[0].lstrip('{')
-        message_blocks[-1] = message_blocks[-1].rstrip('}')
-    
-    messages = []
-    for block in message_blocks:
-        try:
-            # Process the block manually instead of trying to convert to JSON
-            timestamp_match = re.search(r'timestamp:\s*([\d-]+\s+[\d:]+)', block)
-            chat_id_match = re.search(r'chat_id:\s*!([^:\s]+)', block)
-            sender_match = re.search(r'sender_alias:\s*@?([^:\s]+)', block)
-            message_match = re.search(r'message:\s*(.*?)(?=\s*$|\s*,\s*\w+:)', block, re.DOTALL)
-            
-            if timestamp_match and chat_id_match and sender_match and message_match:
-                message = {
-                    'timestamp': dateutil.parser.parse(timestamp_match.group(1)),
-                    'chat_id': '!' + chat_id_match.group(1),
-                    'sender_alias': sender_match.group(1),
-                    'message': message_match.group(1).strip()
-                }
-                messages.append(message)
-            else:
-                print(f"Couldn't extract all fields from block: {block}")
-        except Exception as e:
-            print(f"Error processing message block: {e}")
-            print(f"Problematic block: {block}")
+    # Ensure timestamps are parsed to datetime objects
+    for msg in messages:
+        if 'timestamp' in msg and isinstance(msg['timestamp'], str):
+            msg['timestamp'] = dateutil.parser.parse(msg['timestamp'])
     
     return messages
+
+
+def find_most_active_user(messages: List[Dict], chat_id: str) -> str:
+    """
+    Find the user who sent the most messages in the specified chat.
+    
+    Args:
+        messages: List of message dictionaries
+        chat_id: The chat ID to filter for
+        
+    Returns:
+        Username of the most active sender in the chat
+    """
+    # Filter messages for the specified chat
+    chat_messages = [msg for msg in messages if msg.get('chat_id') == chat_id]
+    
+    if not chat_messages:
+        return ""
+    
+    # Count messages per user
+    user_message_counts = {}
+    for msg in chat_messages:
+        if 'sender_alias' in msg:
+            sender = msg['sender_alias']
+            if sender in user_message_counts:
+                user_message_counts[sender] += 1
+            else:
+                user_message_counts[sender] = 1
+    
+    # Find user with most messages
+    if user_message_counts:
+        return max(user_message_counts.items(), key=lambda x: x[1])[0]
+    
+    return ""
 
 
 def group_chat_to_html(messages: List[Dict], chat_id: str, main_user: str, html_file: str, dropdown_configs: List[Dict[str, Any]]):
@@ -81,9 +80,7 @@ def group_chat_to_html(messages: List[Dict], chat_id: str, main_user: str, html_
             config['csv_column'] = config['label']
     
     # Filter messages for the specified chat_id
-    # Strip server part from chat_id if present
-    chat_id_base = chat_id.split(':')[0] if ':' in chat_id else chat_id
-    chat_messages = [msg for msg in messages if msg.get('chat_id', '').startswith(chat_id_base)]
+    chat_messages = [msg for msg in messages if msg.get('chat_id') == chat_id]
     
     if not chat_messages:
         print(f"No messages found for chat_id: {chat_id}")
@@ -93,12 +90,8 @@ def group_chat_to_html(messages: List[Dict], chat_id: str, main_user: str, html_
     chat_messages.sort(key=lambda x: x.get('timestamp', datetime.min))
     
     # Get unique users in the chat
-    users = set(msg.get('sender_alias', '') for msg in chat_messages)
+    users = set(msg.get('sender_alias', '') for msg in chat_messages if 'sender_alias' in msg)
     print(f"Users in chat: {', '.join(users)}")
-    
-    # Strip domain from main_user if needed
-    main_user_base = main_user.split(':')[0] if ':' in main_user else main_user
-    main_user_base = main_user_base.lstrip('@')
     
     # Group messages by sender and turn
     turns = []
@@ -178,6 +171,11 @@ def group_chat_to_html(messages: List[Dict], chat_id: str, main_user: str, html_
         font-size: 0.8em;
         color: #555;
     }}
+    .translation {{
+        font-size: 1em;
+        color: #666;
+        font-style: italic;
+    }}
     .dropdown-container {{
         margin-top: 10px;
         clear: both;
@@ -216,6 +214,7 @@ def group_chat_to_html(messages: List[Dict], chat_id: str, main_user: str, html_
 </head>
 <body>
 <h2>Group Chat: {chat_id}</h2>
+<p>Main user (messages on right): <strong>{main_user}</strong></p>
 <div class="clearfix" id="content">
 """
 
@@ -224,7 +223,7 @@ def group_chat_to_html(messages: List[Dict], chat_id: str, main_user: str, html_
 <script>
 // Chat variables
 var chat_id = "{chat_id}";
-var main_user = "{main_user_base}";
+var main_user = "{main_user}";
 
 // Mappings for dependent dropdowns
 var dependentMappings = {{
@@ -385,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
         link.setAttribute("href", encodedUri);
         link.setAttribute("download", "group_chat_"""
 
-    # Create a safe filename by removing special characters
+    # Create a safe filename
     safe_chat_id = ''.join(c for c in chat_id if c.isalnum() or c in '_-')
     html += f"{safe_chat_id}_coded.csv"
     
@@ -401,17 +400,22 @@ document.addEventListener('DOMContentLoaded', function() {
     # Build conversation turns with the dropdowns
     for turn_idx, turn in enumerate(turns):
         sender = turn[0].get('sender_alias', '')
-        # Strip domain from sender for comparison
-        sender_base = sender.split(':')[0] if ':' in sender else sender
-        sender_base = sender_base.lstrip('@')
         
-        alignment = "right" if sender_base == main_user_base else "left"
-        html += f'<div class="turn {alignment}" data-turn="{turn_idx}" data-sender="{sender_base}">\n'
-        html += f'<strong>Turn {turn_idx + 1} ({sender_base}):</strong><br>\n'
+        alignment = "right" if sender == main_user else "left"
+        html += f'<div class="turn {alignment}" data-turn="{turn_idx}" data-sender="{sender}">\n'
+        html += f'<strong>Turn {turn_idx + 1} ({sender}):</strong><br>\n'
         for msg in turn:
             timestamp = msg.get('timestamp', '')
             message_text = msg.get('message', '')
-            html += f'<div class="message"><span class="timestamp">{timestamp}</span> - <span class="text">{message_text}</span></div>\n'
+            message_translated = msg.get('message_translated', '')
+            
+            html += f'<div class="message"><span class="timestamp">{timestamp}</span> - <span class="text">{message_text}</span>'
+            
+            # Add translation if available and different from original
+            if message_translated and message_translated != message_text:
+                html += f'<br><span class="translation">[Translation: {message_translated}]</span>'
+            
+            html += '</div>\n'
         html += '<div class="dropdown-container">\n'
         
         # Generate dropdowns based on configurations
@@ -480,8 +484,8 @@ document.addEventListener('DOMContentLoaded', function() {
 def process_group_chat(
     file_path: str, 
     chat_id: str,
-    main_user: str,
-    dropdown_configs: List[Dict[str, Any]],
+    main_user: str = None,
+    dropdown_configs: List[Dict[str, Any]] = None,
     output_dir: str = "./"
 ):
     """
@@ -489,9 +493,11 @@ def process_group_chat(
     
     Args:
         file_path: Path to the group chat file
-        chat_id: The chat ID to filter for (can include server part, which will be stripped)
-        main_user: The username for the main user (can include server part, which will be stripped)
+        chat_id: The chat ID to filter for
+        main_user: The username for the main user (messages will be shown on the right)
+                  If None, the most active user will be used
         dropdown_configs: Configuration for HTML dropdowns
+                         If None, sample configurations will be used
         output_dir: Directory to output HTML files (optional)
     """
     # Create output directory if it doesn't exist
@@ -501,15 +507,32 @@ def process_group_chat(
     messages = parse_group_chat(file_path)
     print(f"Parsed {len(messages)} messages from {file_path}")
     
-    # Strip server parts from chat_id and main_user if present
-    chat_id_base = chat_id.split(':')[0] if ':' in chat_id else chat_id
-    main_user_base = main_user.split(':')[0] if ':' in main_user else main_user
-    main_user_base = main_user_base.lstrip('@')
+    if not messages:
+        print("No messages found in file.")
+        return
     
+    # Use default configurations if none provided
+    if dropdown_configs is None:
+        dropdown_configs = get_sample_configs()
+    
+    # If main_user is not specified, use the most active user in the chat
+    if not main_user:
+        main_user = find_most_active_user(messages, chat_id)
+        if main_user:
+            print(f"Using '{main_user}' as the main user (messages shown on right)")
+        else:
+            print("Could not determine a main user.")
+            # If no main user found, use the first sender in the filtered messages
+            chat_messages = [msg for msg in messages if msg.get('chat_id') == chat_id]
+            if chat_messages:
+                main_user = chat_messages[0].get('sender_alias', '')
+                print(f"Using first sender '{main_user}' as the main user")
+        chat_messages = [msg for msg in messages if msg.get('chat_id') == chat_id]
+        print(f"Filtered {len(chat_messages)} messages for chat_id: {chat_id}")
     # Generate HTML file
-    safe_chat_id = ''.join(c for c in chat_id_base if c.isalnum() or c in '_-')
+    safe_chat_id = ''.join(c for c in chat_id if c.isalnum() or c in '_-')
     html_file = os.path.join(output_dir, f'group_chat_{safe_chat_id}.html')
-    group_chat_to_html(messages, chat_id_base, main_user_base, html_file, dropdown_configs)
+    group_chat_to_html(messages, chat_id, main_user, html_file, dropdown_configs)
 
 
 def get_sample_configs():
@@ -543,17 +566,8 @@ def get_sample_configs():
         'label': 'Tone'
     }
     
-    # Example 3: Another simple dropdown
-    role_config = {
-        'name': 'role',
-        'options': [
-            "Manager", "Colleague", "Friend", "Client" 
-        ],
-        'label': 'Role'
-    }
-    
     # Combine all configurations
-    return [intention_config, tone_config, role_config]
+    return [intention_config, tone_config]
 
 
 # Main execution
@@ -564,8 +578,8 @@ if __name__ == "__main__":
     # Terminal execution
     parser = argparse.ArgumentParser(description='Process group chat log files and generate HTML conversation views')
     parser.add_argument('--file', required=True, help='Path to group chat log file')
-    parser.add_argument('--chat_id', required=True, help='Chat ID to filter for (server part will be stripped)')
-    parser.add_argument('--main_user', required=True, help='Main user (messages shown on the right, server part will be stripped)')
+    parser.add_argument('--chat_id', required=True, help='Chat ID to filter for')
+    parser.add_argument('--main_user', default=None, help='Main user (messages shown on the right). If not specified, most active user will be used')
     parser.add_argument('--output', default='./output_html', help='Directory to output HTML file')
     parser.add_argument('--config', default='sample', help='Path to dropdown configuration file (JSON) or "sample" for default configs')
     

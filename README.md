@@ -71,23 +71,22 @@ conversation_turns = all_conversations_sorted_with_turns_and_html(
 )
 ```
 
-<!-- ### Example 2: Processing Group Chats -->
+### Example 2: Processing Group Chats
 
-<!-- ```python
+```python
 from convo_regenerator import process_group_chat, get_sample_configs
 
-# Get sample dropdown configurations
-dropdown_configs = get_sample_configs()
+# Example of processing a group chat log
+file = "logs/cleaned_BlackBasta_translated.json" # Cleaned group chat logs from translated BlackBasta
+chat_id = "!kJVcUcyUsQhwBCuIPD" # chat ID stripped from server
 
-# Process group chat
 process_group_chat(
-    file_path="logs/group_chat.txt",
-    chat_id="!roomID:server.com",  # Server part will be automatically stripped
-    main_user="@username:server.com",  # Server part will be automatically stripped
+    file_path=file,
     dropdown_configs=dropdown_configs,
-    output_dir="output_html"
+    chat_id = chat_id,
+    output_dir="output_html" 
 )
-``` -->
+```
 
 ### Command Line Usage
 
@@ -95,7 +94,13 @@ You can also run the tools from the command line:
 
 ```bash
 # For Conti chats (if implemented as CLI)
-python convo_regenerator.py --files logs/Conti_chat_logs.json logs/Conti_jabber_logs.json --aliases logs/Conti_user match list.json --users "user1,user2" "user3,user4" --output "./output_html"
+python convo_regenerator.py --files logs/Conti_chat_logs.json logs/Conti_jabber_logs.json --aliases logs/Conti_user_match_list.json --users "user1,user2" "user3,user4" --output "./output_html"
+```
+
+
+```bash
+# For BlackBasta
+python group_chat_regenerator.py --file logs/cleaned_BlackBasta_translated.json --chat_id '!kJVcUcyUsQhwBCuIPD' --output "./output_html"
 ```
 
 ## Dropdown Configuration
@@ -122,6 +127,7 @@ The generated HTML files allow for:
 - Adding annotations via dropdown selections
 - Adding multiple annotations per turn
 - Exporting annotations as CSV
+NOTE!: Reloading the html page will reset all dropdown selections. Saving as you go with the html is not a feature.  
 
 ## Quick Start
 

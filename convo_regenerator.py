@@ -595,18 +595,8 @@ if __name__ == "__main__":
             # button_text and csv_column will be auto-generated
         }
         
-        # Example 3: Another simple dropdown
-        role_config = {
-            'name': 'role',
-            'options': [
-                "Manager", "Colleague", "Friend", "Client" 
-            ],
-            'label': 'Role'
-            # button_text and csv_column will be auto-generated
-        }
-        
         # Combine all configurations
-        return [intention_config, tone_config, role_config]
+        return [intention_config, tone_config]
     
     # Check if script is run from terminal
     if len(sys.argv) > 1:
