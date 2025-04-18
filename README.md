@@ -129,6 +129,7 @@ The generated HTML files allow for:
 - Adding annotations via dropdown selections
 - Adding multiple annotations per turn
 - Exporting annotations as CSV
+
 NOTE!: Reloading the html page will reset all dropdown selections. Saving as you go with the html is not a feature.  
 
 ## Quick Start
