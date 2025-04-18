@@ -7,7 +7,7 @@ A set of tools for processing, analyzing, and visualizing conversation data from
 The Chat Regenerator allows you to parse, structure, and visualize conversations from different chat sources:
 
 1. **Conti Chat Parser** - For processing dual-party (Conti chats) conversations from JSON logs
-2. **Group Chat Parser** - For processing multi-party conversations in JSON-like format **NOT WORKING YET**
+2. **Group Chat Parser** - For processing multi-party conversations in JSON-like format 
 
 Both modules produce HTML files that allow for interactive annotation of conversations with customizable dropdown categories. The annotated data can be downloaded as CSV for further analysis.
 
@@ -120,6 +120,8 @@ Optional fields with defaults:
 - `csv_column`: Name in CSV output (defaults to the label)
 
 ## Interactive HTML Interface
+
+![Chat interface screenshot](images/chat_interface.png "Chat Regenerator Interface")
 
 The generated HTML files allow for:
 
